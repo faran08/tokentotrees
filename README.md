@@ -19,7 +19,7 @@ Originally developed for the workshop **"AI & LLMs: From Concepts to Code"**, th
 
 ## 📸 Demo Preview
 
-![Demo GIF or screenshot placeholder]
+Avilable on LinkedIn | faran0321
 
 ---
 
