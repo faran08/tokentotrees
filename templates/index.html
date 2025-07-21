@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Next Word Prediction Graph</title>
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+    <div class="container">
+        <h1>Interactive Word Prediction Graph</h1>
+        <form method="POST" action="/" id="inputForm">
+            <label for="initial_sentence">Enter a starting sentence: </label>
+            <input type="text" id="initial_sentence" name="initial_sentence" required>
+            <button type="submit">Generate Graph</button>
+            <button type="button" id="autoButton">Auto</button>
+        </form>
+        <div id="graph"></div>
+    </div>
+
+    <script>
+        {% if graph_json %}
+        var graphData = {{ graph_json | safe }};
+        Plotly.newPlot('graph', graphData.data, graphData.layout);
+
+        document.getElementById('graph').on('plotly_click', function (data) {
+            var pointIndex = data.points[0].pointIndex;
+            fetch('/update_graph', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: 'clicked_node=' + pointIndex
+            })
+                .then(response => response.json())
+                .then(newGraphData => {
+                    Plotly.react('graph', newGraphData.data, newGraphData.layout);
+                });
+        });
+        {% endif %}
+
+        document.getElementById('autoButton').addEventListener('click', function () {
+            var initialSentence = document.getElementById('initial_sentence').value.trim();
+            if (!initialSentence) {
+                alert('Please enter a starting sentence first!');
+                return;
+            }
+
+            let currentNode = 0;
+            let iteration = 0;
+            const maxIterations = 10;
+
+            function autoStep() {
+                if (iteration >= maxIterations) {
+                    console.log('Auto generation complete');
+                    return;
+                }
+
+                fetch('/auto_generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: 'initial_sentence=' + encodeURIComponent(initialSentence) + '&current_node=' + currentNode
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.done) {
+                            console.log('No more predictions available');
+                            return;
+                        }
+
+                        var newGraphData = JSON.parse(data.graph);
+                        Plotly.react('graph', newGraphData.data, newGraphData.layout, {
+                            transition: { duration: 500, easing: 'cubic-in-out' },
+                            frame: { duration: 500 }
+                        });
+
+                        currentNode = data.current_node;
+                        iteration++;
+                        setTimeout(autoStep, 500);  // 500ms delay before next iteration
+                    })
+                    .catch(error => console.error('Error during auto generation:', error));
+            }
+
+            autoStep();  // Start the auto generation
+        });
+    </script>
+</body>
+
+</html>
